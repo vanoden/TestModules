@@ -20,6 +20,7 @@ sub new {
 	$self->{client} = $client;
 	$self->{endpoint} = $endpoint;
 	$self->{_status} = 'INCOMPLETE';
+	$self->{_expect_code} = 200;
 	$self->{_cache} = {};
 	$self->{_log} = [];
 	$self->{_start} = utime;
@@ -87,6 +88,15 @@ sub get {
 		exit;
 	}
 
+	if ($response->code != $self->{_expect_code}) {
+		$self->{_error} = $response->reason;
+		return undef;
+	}
+
+	# Store Raw Results
+	$self->{_response} = $response;
+	$self->{_content} = $response->body;
+	
 	if ($response->content_type eq 'application/xml') {
 		my $document = BostonMetrics::Document::XML->new();
 
@@ -104,6 +114,19 @@ sub get {
 			$self->{_error} = $document->error;
 			return undef;
 		}
+	}
+	elsif ($response->content_type =~ /^text\/html\;?/) {
+		my $document = BostonMetrics::Document::HTML->new();
+		if ($document->parse($response->body)) {
+			return $document;
+		}
+		else {
+			$self->{_error} = $document->error;
+			return undef;
+		}
+	}
+	elsif ($response->content_type eq 'text/plain') {
+		return $response->body;
 	}
 	else {
 		$self->{_error} = "Unparsable document type: ".$response->content_type;
@@ -141,6 +164,16 @@ sub post {
 		exit;
 	}
 
+	if ($response->code != $self->{_expect_code}) {
+		$self->{_error} = $response->reason;
+		return undef;
+	}
+
+	# Store Raw Results
+	$self->{_response} = $response;
+	$self->{_content} = $response->body;
+	
+	# Response based on content type
 	if ($response->content_type eq 'application/xml') {
 		my $document = BostonMetrics::Document::XML->new();
 		if ($document->parse($response->body)) {
@@ -157,6 +190,19 @@ sub post {
 			$self->{_error} = $document->error;
 			return undef;
 		}
+	}
+	elsif ($response->content_type =~ /^text\/html\;?/) {
+		my $document = BostonMetrics::Document::HTML->new();
+		if ($document->parse($response->body)) {
+			return $document;
+		}
+		else {
+			$self->{_error} = $document->error;
+			return undef;
+		}
+	}
+	elsif ($response->content_type eq 'text/plain') {
+		return $response->body;
 	}
 	else {
 		$self->{_error} = "Unparseable document type: ".$response->content_type;
@@ -176,6 +222,7 @@ sub log {
 	$level = uc($level);
 
 	push(@{$self->{_log}},{'message' => $message,'level' => $level});
+	$self->status('ERROR') if ($level eq 'ERROR');
 }
 
 sub logs {
@@ -183,10 +230,20 @@ sub logs {
 	return @{$self->{_log}};
 }
 
+sub expect_code {
+	my $self = shift;
+	my $code = shift;
+	
+	if (defined($code)) {
+		$self->{_expect_code} = $code;
+	}
+	return $self->{_expect_code};
+}
 sub echo {
 	my $self = shift;
 	my $message = shift;
-	print $message;
+	$message =~ s/\r?\n$//;
+	print "$message\n";
 }
 
 sub fail {
@@ -202,6 +259,7 @@ sub fail {
 sub skip {
 	my $self = shift;
 	my $message = shift;
+	$self->log($message,'notice');
 	$self->{_status} = 'SKIPPED';
 	$self->{_stop} = utime;
 }
@@ -223,6 +281,46 @@ sub finish {
 sub elapsed {
 	my $self = shift;
 	return $self->{_stop} - $self->{_start};
+}
+
+sub content {
+	my $self = shift;
+	return $self->{_content};
+}
+
+sub response {
+	my $self = shift;
+	return $self->{_response};
+}
+
+sub version_check {
+	my ($self,$current,$minimum) = @_;
+	my ($cmajor,$cminor,$csub,$mmajor,$mminor,$msub);
+	if ($current =~ /(\d+)\.(\d+)\.(\d+)/) {
+		$cmajor = $1;
+		$cminor = $2;
+		$csub = $3;
+	}
+	else {
+		$self->{_error} = "Cannot parse current version: '$current'";
+		return undef;
+	}
+	if ($minimum =~ /(\d+)\.(\d+)\.(\d+)/) {
+		$mmajor = $1;
+		$mminor = $2;
+		$msub = $3;
+	}
+	else {
+		$self->{_error} = "Cannot parse minimum version: '$minimum'";
+		return undef;
+	}
+	print STDOUT "$mmajor vs $cmajor, $mminor vs $cminor, $msub vs $csub\n";
+	if ($cmajor >= $mmajor && $cminor >= $mminor && $csub >= $msub) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
 }
 
 sub error {

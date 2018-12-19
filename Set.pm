@@ -10,12 +10,24 @@ sub new {
     my $package = shift;
     $client = shift;
     $endpoint = shift;
+    my $title = shift;
 
     my $self = { };
     bless $self, $package;
-
+    
+    $self->{_title} = $title if (defined($title));
     $self->{_start} = time;
     return $self;
+}
+
+sub title {
+    my $self = shift;
+    my $title = shift;
+    
+    if (defined($title)) {
+        $self->{_title} = $title;
+    }
+    return $self->{_title};
 }
 
 sub timeout {
@@ -71,17 +83,24 @@ sub list {
 sub report {
     my $self = shift;
 
+    my %count;
     my $elapsed = time - $self->{_start};
-    print "\n\n---------Results for ".$self->{_cache}->{serial}."-----------\n";
-    print "Completed ".@{$self->{_tests}}." connections in $elapsed seconds\n";
+    my $content = "\n\n---------".$self->title."-----------\n";
 
     foreach my $test(@{$self->{_tests}}) {
-        print $test->name()." ".$test->elapsed()." seconds\n";
+        $content .= $test->name()." ".$test->status()." in ".$test->elapsed()." seconds\n";
+        $count{$test->status()} ++;
         foreach my $log($test->logs()) {
-            print "\t".$log->{level}.": ".$log->{message}."\n";
+            $content .= "\t".$log->{level}.": ".$log->{message}."\n";
         }
-        print "\tSTATUS: ".$test->status()."\n";
     }
+
+    $content .= "\n--------Results--------\n";
+    $content .= "Completed ".@{$self->{_tests}}." tests in $elapsed seconds\n";
+    foreach my $status (sort keys %count) {
+        $content .= "$status: ".$count{$status}."\n";
+    }
+    return $content;
 }
 
 sub exit {
