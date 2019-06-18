@@ -96,11 +96,25 @@ sub report {
     }
 
     $content .= "\n--------Results--------\n";
+	if ($self->cache('version')) {
+		$content .= "Package version ".$self->cache('version')."\n";
+	}
     $content .= "Completed ".@{$self->{_tests}}." tests in $elapsed seconds\n";
     foreach my $status (sort keys %count) {
         $content .= "$status: ".$count{$status}."\n";
     }
     return $content;
+}
+
+sub successful {
+	my $self = shift;
+
+    foreach my $test(@{$self->{_tests}}) {
+		if ($test->status() !~ /SUCCESS/) {
+			return 0;
+		}
+    }
+	return 1;
 }
 
 sub exit {

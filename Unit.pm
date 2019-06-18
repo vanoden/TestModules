@@ -125,7 +125,7 @@ sub get {
 			return undef;
 		}
 	}
-	elsif ($response->content_type eq 'text/plain') {
+	elsif ($response->content_type =~ 'text/plain') {
 		return $response->body;
 	}
 	else {
