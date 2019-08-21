@@ -23,7 +23,7 @@ sub new {
 	$self->{_expect_code} = 200;
 	$self->{_cache} = {};
 	$self->{_log} = [];
-	$self->{_start} = utime;
+	$self->{_start} = time;
 
 	return $self;
 }
@@ -178,8 +178,12 @@ sub post {
 		my $document = BostonMetrics::Document::XML->new();
 		if ($document->parse($response->body)) {
 			if ($document->object->{success}) {
-				my $object = $document->object->{$object};
-				return $object;
+				if (defined($object) && length($object) > 0) {
+					return $document->object->{$object};
+				}
+				else {
+					return $document->object;
+				}
 			}
 			else {
 				$self->{_error} = $document->object->{error};
@@ -253,7 +257,7 @@ sub fail {
 	$self->log($error,'error');
 	$self->{_error} = $error;
 	$self->{_status} = 'ERROR';
-	$self->{_stop} = utime;
+	$self->{_stop} = time;
 }
 
 sub skip {
@@ -261,13 +265,13 @@ sub skip {
 	my $message = shift;
 	$self->log($message,'notice');
 	$self->{_status} = 'SKIPPED';
-	$self->{_stop} = utime;
+	$self->{_stop} = time;
 }
 
 sub success {
 	my $self = shift;
 	$self->{_status} = 'SUCCESS';
-	$self->{_stop} = utime;
+	$self->{_stop} = time;
 }
 
 sub finish {
@@ -275,7 +279,7 @@ sub finish {
 	unless($self->{_status} =~ /error/i) {
 		$self->{_status} = "SUCCESS";
 	}
-	$self->{_stop} = utime;
+	$self->{_stop} = time;
 }
 
 sub elapsed {
