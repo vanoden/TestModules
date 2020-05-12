@@ -24,6 +24,7 @@ sub new {
 	$self->{_cache} = {};
 	$self->{_log} = [];
 	$self->{_start} = time;
+	$self->require_type('application/xml');
 
 	return $self;
 }
@@ -195,6 +196,9 @@ sub post {
 			return undef;
 		}
 	}
+	elsif ($self->require_type() eq 'application/xml') {
+		$self->{_error} = $response->body();
+	}
 	elsif ($response->content_type =~ /^text\/html\;?/) {
 		my $document = BostonMetrics::Document::HTML->new();
 		if ($document->parse($response->body)) {
@@ -250,6 +254,19 @@ sub echo {
 	print "$message\n";
 }
 
+sub warn {
+	my $self = shift;
+	my $message = shift;
+	$message =~ s/\r?\n//g;
+	$self->log($message,'warn');
+	print "Warning: $message\n";
+}
+
+sub warnings {
+	my $self = shift;
+	return @{$self->{warnings}};
+}
+
 sub fail {
 	my $self = shift;
 	my $error = shift;
@@ -297,6 +314,15 @@ sub response {
 	return $self->{_response};
 }
 
+sub require_type {
+	my $self = shift;
+	my $type = shift;
+	if (defined($type)) {
+		$self->{_require_type} = $type;
+	}
+	return $self->{_require_type};
+}
+
 sub version_check {
 	my ($self,$current,$minimum) = @_;
 	my ($cmajor,$cminor,$csub,$mmajor,$mminor,$msub);
@@ -329,6 +355,13 @@ sub version_check {
 
 sub error {
 	my $self = shift;
+	my $error = shift;
+
+	if (defined($error)) {
+		$self->{_error} = $error;
+		print "Error: $error\n";
+	}
+	
 	return $self->{_error};
 }
 
