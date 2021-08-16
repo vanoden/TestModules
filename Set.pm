@@ -4,12 +4,11 @@ use strict;
 use Test::Unit;
 
 my $client;
-my $endpoint;
 
 sub new {
     my $package = shift;
     $client = shift;
-    $endpoint = shift;
+    my $endpoint = shift;
     my $title = shift;
 
     my $self = { };
@@ -17,6 +16,7 @@ sub new {
     
     $self->{_title} = $title if (defined($title));
     $self->{_start} = time;
+	$self->{endpoint} = $endpoint;
     return $self;
 }
 
@@ -47,7 +47,11 @@ sub client {
 
 sub endpoint {
     my $self = shift;
-    $endpoint = shift;
+    my $endpoint = shift;
+	if (defined($endpoint)) {
+		$self->{endpoint} = $endpoint;
+	}
+	return $self->{endpoint};
 }
 
 sub cache {
@@ -69,7 +73,7 @@ sub add {
     my $self = shift;
     my $name = shift;
 
-    push(@{$self->{_tests}},Test::Unit->new($client,$endpoint));
+    push(@{$self->{_tests}},Test::Unit->new($client,$self->{endpoint}));
     $self->{_tests}->[-1]->name($name);
     return $self->{_tests}->[-1];
 }
@@ -110,7 +114,7 @@ sub successful {
 	my $self = shift;
 
     foreach my $test(@{$self->{_tests}}) {
-		if ($test->status() !~ /SUCCESS/) {
+		if ($test->status() !~ /SUCCESS/ && $test->status() !~ /SKIPPED/) {
 			return 0;
 		}
     }
