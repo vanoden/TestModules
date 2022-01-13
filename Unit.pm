@@ -60,6 +60,15 @@ sub status {
 	return $self->{_status};
 }
 
+sub endpoint {
+	my $self = shift;
+	my $endpoint = shift;
+	if (defined($endpoint)) {
+		$self->{endpoint} = $endpoint;
+	}
+	return $self->{endpoint};
+}
+
 sub get {
 	my $self = shift;
 	my $uri = shift;
@@ -129,6 +138,9 @@ sub get {
 	elsif ($response->content_type =~ 'text/plain') {
 		return $response->body;
 	}
+	elsif (length($response->content_type) == 0) {
+		return '';
+	}
 	else {
 		$self->{_error} = "Unparsable document type: ".$response->content_type;
 		return undef;
@@ -145,7 +157,7 @@ sub post {
 	my $request = BostonMetrics::HTTP::Request->new();
 	$request->url($self->{endpoint}.$uri);
 	$request->method('POST');
-	
+
 	foreach my $param(sort keys %{$params}) {
 		$request->add_param($param,$params->{$param});
 	}
@@ -156,11 +168,11 @@ sub post {
 
 	my $response = $self->{client}->post($request);
 	if ($self->{client}->error) {
-		$self->{_error} = $self->{client}->error;
+		$self->{_error} = "Client error: ".$self->{client}->error;
 		return undef;
 	}
 
-	if ($params->{_debug} || $self->{_debug}) {
+	if (0 && $params->{_debug} || $self->{_debug}) {
 		print Dumper $response;
 		exit;
 	}
@@ -173,11 +185,12 @@ sub post {
 	# Store Raw Results
 	$self->{_response} = $response;
 	$self->{_content} = $response->body;
-	
+
 	# Response based on content type
 	if ($response->content_type eq 'application/xml') {
 		my $document = BostonMetrics::Document::XML->new();
 		if ($document->parse($response->body)) {
+			$self->{_object} = $document->object;
 			if ($document->object->{success}) {
 				if (defined($object) && length($object) > 0) {
 					return $document->object->{$object};
@@ -309,6 +322,11 @@ sub content {
 	return $self->{_content};
 }
 
+sub object {
+	my $self = shift;
+	return $self->{_object};
+}
+
 sub response {
 	my $self = shift;
 	return $self->{_response};
@@ -318,7 +336,12 @@ sub require_type {
 	my $self = shift;
 	my $type = shift;
 	if (defined($type)) {
-		$self->{_require_type} = $type;
+		if ($type eq 'none') {
+			$self->{_require_type} = undef;
+		}
+		else {
+			$self->{_require_type} = $type;
+		}
 	}
 	return $self->{_require_type};
 }
