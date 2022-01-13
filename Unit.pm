@@ -353,6 +353,15 @@ sub version_check {
 	}
 }
 
+sub endpoint {
+	my $self = shift;
+	my $endpoint = shift;
+	if (defined($endpoint)) {
+		$self->{endpoint} = $endpoint;
+	}
+	return $self->{endpoint};
+}
+
 sub error {
 	my $self = shift;
 	my $error = shift;
