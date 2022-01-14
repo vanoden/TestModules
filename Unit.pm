@@ -158,6 +158,10 @@ sub post {
 	$request->url($self->{endpoint}.$uri);
 	$request->method('POST');
 
+	if (defined($params) && ! ref($params)) {
+		$self->{_error} = "Invalid parameter 4: '$params' not a reference\n";
+		return undef;
+	}
 	foreach my $param(sort keys %{$params}) {
 		$request->add_param($param,$params->{$param});
 	}
