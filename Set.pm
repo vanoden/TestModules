@@ -103,7 +103,9 @@ sub report {
 	if ($self->cache('version')) {
 		$content .= "Package version ".$self->cache('version')."\n";
 	}
-    $content .= "Completed ".@{$self->{_tests}}." tests in $elapsed seconds\n";
+	my $completed = @{$self->{_tests}} - $count{'SKIPPED'};
+	my $total = @{$self->{_tests}};
+    $content .= "Completed $completed/$total tests in $elapsed seconds\n";
     foreach my $status (sort keys %count) {
         $content .= "$status: ".$count{$status}."\n";
     }
